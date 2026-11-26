@@ -276,15 +276,6 @@ export function patchGroupConfig(
     if (!Number.isInteger(etPort) || etPort < 1 || etPort > 65535) return { ok: false, error: 'etPort must be between 1 and 65535.' };
     next.etPort = etPort;
   }
-  // Group Details only offers network device mode for plain SSH groups.
-  const changesNetworkTransport = ['deviceType', 'moshEnabled', 'etEnabled'].some((key) => Object.hasOwn(defaults, key));
-  if (
-    changesNetworkTransport
-    && next.deviceType === 'network'
-    && ((next.protocol !== undefined && next.protocol !== 'ssh') || next.moshEnabled || next.etEnabled)
-  ) {
-    return { ok: false, error: 'deviceType network only applies to SSH groups without Mosh or ET.' };
-  }
   return { ok: true, config: next };
 }
 
@@ -354,6 +345,26 @@ export function upsertGroup(
     ...state.configs.filter((config) => config.path !== path).map((config) => ({ ...config, path: rename(config.path) })),
     patched.config,
   ];
+  // Group Details only offers network device mode for plain SSH groups. When
+  // this update sets or removes device mode, Mosh or ET, check the effective
+  // group (parents included) so a removal cannot inherit an unsupported mix.
+  const parsedDefaults = parseDefaults(defaults);
+  const removedDefaults = parseRemoveDefaults(options.removeDefaults);
+  const touchesNetworkMode = ['deviceType', 'moshEnabled', 'etEnabled'].some((key) => (
+    (!('error' in parsedDefaults) && Object.hasOwn(parsedDefaults, key))
+    || (Array.isArray(removedDefaults) && removedDefaults.includes(key))
+  ));
+  if (touchesNetworkMode) {
+    const effectiveGroup = resolveGroupDefaults(newPath, configs);
+    if (
+      effectiveGroup.deviceType === 'network'
+      && ((effectiveGroup.protocol !== undefined && effectiveGroup.protocol !== 'ssh')
+        || effectiveGroup.moshEnabled
+        || effectiveGroup.etEnabled)
+    ) {
+      return { ok: false, error: 'deviceType network only applies to SSH groups without Mosh or ET.' };
+    }
+  }
   const nextState: GroupState = {
     groups,
     configs,

@@ -62,6 +62,16 @@ describe('vault group connection defaults', () => {
       if (!result.ok) assert.match(result.error, /deviceType network only applies to SSH groups/);
     }
     assert.equal(upsertGroup(stateWith([{ path: 'prod', moshEnabled: true }]), 'prod', '{"deviceType":"general"}', [], proxyProfiles).ok, true);
+
+    const inheritsNetwork = upsertGroup(
+      stateWith([{ path: 'prod', deviceType: 'network' }, { path: 'prod/routers', protocol: 'telnet', deviceType: 'general' }]),
+      'prod/routers', undefined, [], proxyProfiles, { removeDefaults: ['deviceType'] },
+    );
+    assert.equal(inheritsNetwork.ok, false, 'removing the override must not inherit network mode on Telnet');
+    if (!inheritsNetwork.ok) assert.match(inheritsNetwork.error, /deviceType network only applies to SSH groups/);
+
+    const parentNetwork = upsertGroup(stateWith([{ path: 'prod', deviceType: 'network' }]), 'prod/routers', '{"moshEnabled":true}', [], proxyProfiles);
+    assert.equal(parentNetwork.ok, false, 'enabling Mosh under an inherited network mode is rejected');
   });
 
   it('removeDefaults deletes group defaults so parent groups apply again', () => {
