@@ -248,6 +248,21 @@ test('vault host update does not re-inherit network mode on transports that do n
   assert.equal(ssh.updatedHost.deviceType, undefined);
 });
 
+test('vault host update keeps serial Backspace in serialConfig like the serial editor', () => {
+  const serial = makeHost({
+    protocol: 'serial', hostname: '/dev/ttyUSB0', port: 9600,
+    serialConfig: { path: '/dev/ttyUSB0', baudRate: 9600, backspaceBehavior: 'default' },
+  });
+  const set = expectOk(update(serial, { backspaceBehavior: 'ctrl-h' }));
+  assert.equal(set.updatedHost.serialConfig?.backspaceBehavior, 'ctrl-h');
+  assert.equal(set.updatedHost.backspaceBehavior, undefined);
+
+  const reset = expectOk(update(set.updatedHost, { resetFields: ['backspaceBehavior'] }));
+  assert.equal(reset.updatedHost.serialConfig?.backspaceBehavior, undefined);
+  assert.equal(reset.updatedHost.backspaceBehavior, undefined);
+  assert.equal(reset.updatedHost.serialConfig?.baudRate, 9600, 'other serial settings are kept');
+});
+
 test('vault host update resetFields lets group values apply again', () => {
   const group: Partial<GroupConfig> = {
     charset: 'GBK',

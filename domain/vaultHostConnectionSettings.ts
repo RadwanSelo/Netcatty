@@ -158,6 +158,11 @@ export function applyVaultHostResetFields(
   for (const field of parsed.fields) {
     for (const key of RESETTABLE_FIELDS[field]) delete next[key];
   }
+  // The serial editor stores Backspace in serialConfig, which takes priority.
+  if (parsed.fields.includes('backspaceBehavior') && host.serialConfig?.backspaceBehavior !== undefined) {
+    const { backspaceBehavior: _backspaceBehavior, ...serialConfig } = host.serialConfig;
+    next.serialConfig = serialConfig;
+  }
   return { ok: true, host: next as unknown as Host, fields: parsed.fields };
 }
 
@@ -238,7 +243,13 @@ export function applyVaultHostConnectionSettings(
     if (parseEnumInput(source.backspaceBehavior, ['ctrl-h'] as const) !== 'ctrl-h') {
       return { ok: false, error: 'backspaceBehavior must be ctrl-h. Use resetFields ["backspaceBehavior"] to go back to the default or group value.' };
     }
-    updated.backspaceBehavior = 'ctrl-h';
+    if (updated.protocol === 'serial' && updated.serialConfig) {
+      // Like the serial editor: the serial override lives in serialConfig.
+      updated.serialConfig = { ...updated.serialConfig, backspaceBehavior: 'ctrl-h' };
+      updated.backspaceBehavior = undefined;
+    } else {
+      updated.backspaceBehavior = 'ctrl-h';
+    }
   }
 
   if (hasOwn(source, 'charset')) {
