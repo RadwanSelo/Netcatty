@@ -228,8 +228,12 @@ export function applyVaultHostConnectionSettings(
       return { ok: false, error: 'deviceType network only applies to SSH hosts without Mosh or ET, and to serial hosts.' };
     }
     updated.deviceType = deviceType;
-  } else if (options.resetFields?.includes('deviceType') && effective.deviceType === 'network' && !networkModeAllowed) {
-    return { ok: false, error: 'Resetting deviceType would inherit network mode, which only applies to SSH hosts without Mosh or ET, and to serial hosts.' };
+  } else if (
+    options.resetFields?.some((field) => field === 'deviceType' || field === 'moshEnabled' || field === 'etEnabled')
+    && effective.deviceType === 'network'
+    && !networkModeAllowed
+  ) {
+    return { ok: false, error: 'This reset would leave network mode on a host that uses Mosh, ET or another transport; network mode only applies to SSH hosts without Mosh or ET, and to serial hosts.' };
   }
 
   if (hasOwn(source, 'sshInputCompatibility')) {

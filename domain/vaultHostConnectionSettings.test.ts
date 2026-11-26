@@ -240,7 +240,13 @@ test('vault host update does not re-inherit network mode on transports that do n
     resolveEffectiveHost: groupResolver({ deviceType: 'network' }),
   });
   assert.equal(result.ok, false);
-  if (!result.ok) assert.match(result.error, /Resetting deviceType would inherit network mode/);
+  if (!result.ok) assert.match(result.error, /This reset would leave network mode/);
+
+  const moshReset = updateWith(makeHost({ group: 'prod', deviceType: 'network', moshEnabled: false }), { resetFields: ['moshEnabled'] }, {
+    resolveEffectiveHost: groupResolver({ moshEnabled: true }),
+  });
+  assert.equal(moshReset.ok, false, 'resetting Mosh must not create network mode with Mosh');
+  if (!moshReset.ok) assert.match(moshReset.error, /This reset would leave network mode/);
 
   const ssh = expectOk(updateWith(makeHost({ group: 'prod', deviceType: 'general' }), { resetFields: ['deviceType'] }, {
     resolveEffectiveHost: groupResolver({ deviceType: 'network' }),
